@@ -1,0 +1,117 @@
+unit uFrmLogin;
+
+interface
+
+uses
+  System.SysUtils, System.Types, System.UITypes, System.Classes, System.Variants,
+  FMX.Types, FMX.Controls, FMX.Forms, FMX.Graphics, FMX.Dialogs, FMX.Objects,
+  FMX.Layouts, FMX.Controls.Presentation, FMX.Edit, FMX.StdCtrls, FMX.TabControl,
+  uLoading, uSession;
+
+type
+  TFrmLogin = class(TForm)
+    imgLogo: TImage;
+    lblCadastrar: TLabel;
+    lblBoasVindas: TLabel;
+    lytLogin: TLayout;
+    rectEmail: TRectangle;
+    edtEmail: TEdit;
+    rectSenha: TRectangle;
+    edtSenha: TEdit;
+    Label1: TLabel;
+    rectAcessar: TRectangle;
+    btnLogin: TSpeedButton;
+    StyleBook: TStyleBook;
+    procedure lblCadastrarClick(Sender: TObject);
+    procedure btnLoginClick(Sender: TObject);
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
+  private
+    procedure ThreadLoginTerminate(Sender: TObject);
+    { Private declarations }
+  public
+    { Public declarations }
+  end;
+
+var
+  FrmLogin: TFrmLogin;
+
+implementation
+
+{$R *.fmx}
+
+uses uFrmCadastro, DataModuleUsuario, uFrmPrincipal;
+
+procedure TFrmLogin.ThreadLoginTerminate(Sender: TObject);
+begin
+  TLoading.Hide;
+
+  if Sender is TThread then
+  begin
+    if Assigned(TThread(Sender).FatalException) then
+    begin
+      // Exibe uma mensagem de erro em caso de exceção não tratada
+      ShowMessage(Exception(TThread(sender).FatalException).Message);
+      Exit;
+    end;
+  end;
+
+  // Verifica se a autenticação foi bem-sucedida
+  if DmUsuario.QryUsuario.RecordCount > 0 then
+  begin
+    if not Assigned(FrmPrincipal) then
+      Application.CreateForm(TFrmPrincipal, FrmPrincipal);
+
+    // Define o formulário principal como o MainForm da aplicação
+    Application.MainForm := FrmPrincipal;
+
+    // Define o nome e email do usuário na sessão
+    FrmPrincipal.lblMenuNome.Text := DmUsuario.QryUsuario.FieldByName('nome').AsString;
+    FrmPrincipal.lblMenuEmail.Text := DmUsuario.QryUsuario.FieldByName('email').AsString;
+    TSession.Nome := DmUsuario.QryUsuario.FieldByName('nome').AsString;;
+    TSession.Email := DmUsuario.QryUsuario.FieldByName('email').AsString;
+
+    FrmPrincipal.Show;
+    FrmLogin.Close;
+  end
+  else
+  begin
+    ShowMessage('Email ou Senha invalido');
+  end;
+end;
+
+procedure TFrmLogin.btnLoginClick(Sender: TObject);
+var
+  t: TThread;
+begin
+  // Exibe a tela de carregamento durante a tentativa de login
+  TLoading.Show(FrmLogin, '');
+
+  // Cria uma thread anônima para realizar a autenticação
+  t := TThread.CreateAnonymousThread(procedure
+  begin
+    // Chama a função de autenticação no módulo de usuário
+    DmUsuario.Login(edtEmail.Text, edtSenha.Text);
+  end);
+
+  // Define o evento OnTerminate para a thread de login
+  t.OnTerminate := ThreadLoginTerminate;
+
+  // Inicia a thread de login
+  t.Start;
+end;
+
+procedure TFrmLogin.FormClose(Sender: TObject; var Action: TCloseAction);
+begin
+  Action := TCloseAction.caFree;
+  FrmLogin := nil;
+end;
+
+procedure TFrmLogin.lblCadastrarClick(Sender: TObject);
+begin
+  if not Assigned(FrmCadastro) then
+    Application.CreateForm(TFrmCadastro, FrmCadastro);
+
+  FrmCadastro.Show;
+end;
+
+end.

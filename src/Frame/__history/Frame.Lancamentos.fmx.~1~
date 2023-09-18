@@ -1,0 +1,5 @@
+object FrameLancamentos: TFrameLancamentos
+  Size.Width = 242.000000000000000000
+  Size.Height = 254.000000000000000000
+  Size.PlatformDefault = False
+end

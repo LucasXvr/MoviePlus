@@ -1,0 +1,10 @@
+object DmDados: TDmDados
+  Height = 247
+  Width = 385
+  object TabFilmes: TClientDataSet
+    Aggregates = <>
+    Params = <>
+    Left = 168
+    Top = 72
+  end
+end

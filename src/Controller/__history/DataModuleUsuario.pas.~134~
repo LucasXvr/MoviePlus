@@ -1,0 +1,263 @@
+unit DataModuleUsuario;
+
+interface
+
+uses
+  System.SysUtils, System.Classes, FireDAC.Stan.Intf, FireDAC.Stan.Option,
+  FireDAC.Stan.Error, FireDAC.UI.Intf, FireDAC.Phys.Intf, FireDAC.Stan.Def,
+  FireDAC.Stan.Pool, FireDAC.Stan.Async, FireDAC.Phys, FireDAC.FMXUI.Wait,
+  Data.DB, FireDAC.Comp.Client, FireDAC.Phys.SQLite, FireDAC.Phys.SQLiteDef,
+  FireDAC.Stan.ExprFuncs, FireDAC.Phys.SQLiteWrapper.Stat, FireDAC.Stan.Param,
+  FireDAC.DatS, FireDAC.DApt.Intf, FireDAC.DApt, FireDAC.Comp.DataSet, vcl.Dialogs,
+  Data.FMTBcd, Data.SqlExpr, uSession;
+
+type
+  TDmUsuario = class(TDataModule)
+    Conn: TFDConnection;
+    FDPhysSQLiteDriverLink: TFDPhysSQLiteDriverLink;
+    qryUsuario: TFDQuery;
+    TabUsuario: TFDMemTable;
+    qryFilmes: TFDQuery;
+    procedure ConnBeforeConnect(Sender: TObject);
+    procedure ConnAfterConnect(Sender: TObject);
+    procedure DataModuleCreate(Sender: TObject);
+  private
+    { Private declarations }
+  public
+    procedure Desconectar;
+    procedure BuscarFilmeUsuario;
+    procedure Login(email, senha: string);
+    procedure InserirUsuario(email, nome, senha: string);
+    procedure RemoverFilme(id_filme, id_usuario: integer);
+    procedure EditarUsuario(id_usuario: integer; nome, email, senha: string);
+    procedure InserirFilme(id_filme, id_usuario: integer; titulo, descricao, url_foto: string);
+    function FilmeJaExiste(IdFilme: Integer): Boolean;
+    function FilmeNaoExiste(IdFilme: Integer): Boolean;
+    { Public declarations }
+  end;
+
+var
+  DmUsuario: TDmUsuario;
+
+implementation
+
+{%CLASSGROUP 'FMX.Controls.TControl'}
+
+{$R *.dfm}
+
+procedure TDmUsuario.ConnAfterConnect(Sender: TObject);
+begin
+  // Criar as tabelas no banco de dados SQLite, se elas não existirem
+
+  Conn.ExecSQL('CREATE TABLE IF NOT EXISTS ' +
+               'USUARIOS(ID_USUARIO INTEGER PRIMARY KEY AUTOINCREMENT, ' +
+               'NOME VARCHAR(100),' +
+               'EMAIL VARCHAR(100),' +
+               'SENHA VARCHAR(100)) '
+  );
+
+  Conn.ExecSQL('CREATE TABLE IF NOT EXISTS ' +
+               'FILMES(ID_FILME INT PRIMARY KEY, ' +
+               'ID_USUARIO INT, ' +
+               'TITULO VARCHAR(255), ' +
+               'DESCRICAO TEXT, ' +
+               'URL_FOTO VARCHAR(255), ' +
+               'FOREIGN KEY (ID_USUARIO) REFERENCES USUARIOS(ID_USUARIO)) '
+  );
+end;
+
+procedure TDmUsuario.ConnBeforeConnect(Sender: TObject);
+begin
+  // Configurar a conexão com o banco de dados SQLite
+
+  Conn.DriverName := 'SQLite';
+
+  {$IFDEF MSWINDOWS}
+    Conn.Params.Values['DataBase'] := System.SysUtils.GetCurrentDir + '/banco.db';
+  {$ELSE}
+    Conn.Params.Values['DataBase'] := TPath.Combine(TPath.GetDocumentsPath, 'banco.db');
+  {$ENDIF}
+end;
+
+procedure TDmUsuario.DataModuleCreate(Sender: TObject);
+begin
+  // Conectar automaticamente ao banco de dados SQLite quando o Data Module for criado
+  Conn.Connected := true;
+end;
+
+procedure TDmUsuario.RemoverFilme(id_filme, id_usuario: integer);
+begin
+  with qryFilmes do
+  begin
+    try
+      Active := False;
+      SQL.Clear;
+
+      // Remover um filme específico pertencente a um usuário
+      SQL.Add('DELETE FROM FILMES WHERE ID_FILME = :ID_FILME AND ID_USUARIO = :ID_USUARIO');
+
+      ParamByName('ID_FILME').Value := id_filme;
+      ParamByName('ID_USUARIO').Value := id_usuario;
+
+      ExecSQL;
+
+    except
+      on E: Exception do
+        ShowMessage('Erro ao remover Filme');
+    end;
+  end;
+end;
+
+procedure TDmUsuario.InserirFilme(id_filme, id_usuario: integer; titulo, descricao, url_foto: string);
+begin
+  with qryFilmes do
+  begin
+    try
+      Active := False;
+      SQL.Clear;
+
+      // Inserir informações de um filme para um usuário
+      SQL.Add('INSERT INTO FILMES(ID_FILME, ID_USUARIO, TITULO, DESCRICAO, URL_FOTO)');
+      SQL.Add('VALUES(:ID_FILME, :ID_USUARIO, :TITULO, :DESCRICAO, :URL_FOTO)');
+
+      ParamByName('ID_FILME').Value := id_filme;
+      ParamByName('ID_USUARIO').Value := id_usuario;
+      ParamByName('TITULO').Value := titulo;
+      ParamByName('DESCRICAO').Value := descricao;
+      ParamByName('URL_FOTO').Value := url_foto;
+
+      ExecSQL;
+
+    except
+      on E: Exception do
+      ShowMessage('Erro ao inserir Filme');
+    end;
+  end;
+end;
+
+procedure TDmUsuario.InserirUsuario(email, nome, senha: string);
+begin
+  with qryUsuario do
+  begin
+    try
+      Active := False;
+      SQL.Clear;
+
+      // Inserir informações de um novo usuário
+      SQL.Add('INSERT INTO USUARIOS(EMAIL, NOME, SENHA)');
+      SQL.Add('VALUES(:EMAIL, :NOME, :SENHA)');
+
+      ParamByName('EMAIL').Value := email;
+      ParamByName('NOME').Value := nome;
+      ParamByName('SENHA').Value := senha;
+
+      ExecSQL;
+
+      // Recuperar o ID do usuário recém-inserido
+      SQL.Text := 'SELECT last_insert_rowid() AS ID_USUARIO';
+      Open;
+      if not IsEmpty then
+      begin
+        // O último ID gerado estará em FieldByName('ID_USUARIO').AsInteger
+        TSession.ID_USUARIO := FieldByName('ID_USUARIO').AsInteger;
+      end;
+    except
+      on E: Exception do
+      begin
+        // Exibir a mensagem de exceção para depurar
+        ShowMessage('Erro ao inserir usuário: ' + E.Message);
+      end;
+    end;
+  end;
+end;
+
+procedure TDmUsuario.Desconectar;
+begin
+  // Limpar a sessão atual do usuário
+  TSession.ID_USUARIO := 0;
+end;
+
+procedure TDmUsuario.BuscarFilmeUsuario;
+begin
+  with qryFilmes do
+  begin
+    Active := False;
+    SQL.Clear;
+
+    // Buscar filmes pertencentes a um usuário específico
+    SQL.Add('SELECT id_filme, titulo, url_foto FROM Filmes ');
+    SQL.Add('where id_usuario = ' + IntToStr(TSession.ID_USUARIO));
+
+    Open;
+  end;
+end;
+
+function TDmUsuario.FilmeJaExiste(IdFilme: Integer): Boolean;
+begin
+  with qryfilmes do
+  begin
+    SQL.Text := 'SELECT COUNT(*) FROM FILMES WHERE ID_FILME = :IdFilme';
+    ParamByName('IdFilme').AsInteger := IdFilme;
+
+    Open;
+
+    // Se o filme já existe (contagem maior que 0), retorna True; caso contrário, retorna False
+    Result := qryFilmes.Fields[0].AsInteger > 0;
+  end;
+end;
+
+function TDmUsuario.FilmeNaoExiste(IdFilme: Integer): Boolean;
+begin
+  with qryfilmes do
+  begin
+    SQL.Text := 'SELECT COUNT(*) FROM FILMES WHERE ID_FILME = :IdFilme';
+    ParamByName('IdFilme').AsInteger := IdFilme;
+
+    Open;
+
+    // Se o filme não existe (contagem igual a 0), retorna True; caso contrário, retorna False
+    Result := qryFilmes.Fields[0].AsInteger = 0;
+  end;
+end;
+
+procedure TDmUsuario.EditarUsuario(id_usuario: integer; nome, email, senha: string);
+begin
+  with qryUsuario do
+  begin
+    try
+      // Atualizar informações do usuário
+      SQL.Text := 'UPDATE USUARIOS SET NOME = :NOME, EMAIL = :EMAIL, SENHA = :SENHA WHERE ID_USUARIO = :ID_USUARIO';
+      ParamByName('ID_USUARIO').Value := TSession.ID_USUARIO;
+      ParamByName('NOME').Value := nome;
+      ParamByName('EMAIL').Value := email;
+      ParamByName('SENHA').Value := senha;
+
+      ExecSQL;
+    except
+      on E: Exception do
+        ShowMessage('Erro ao editar usuário: ' + E.Message);
+    end;
+  end;
+end;
+
+procedure TDmUsuario.Login(email, senha: string);
+begin
+  with qryUsuario do
+  begin
+    Active := false;
+    SQL.Clear;
+
+    // Verificar as credenciais de login do usuário
+    SQL.Add('SELECT id_usuario, nome, email, senha FROM usuarios');
+    SQL.Add('WHERE email = :email AND senha = :senha');
+
+    ParamByName('email').Value := email;
+    ParamByName('senha').Value := senha;
+
+    Open; // Abra a consulta para executar a consulta SELECT e recuperar os dados
+
+    TSession.ID_USUARIO := FieldByName('id_usuario').AsInteger;
+  end;
+end;
+
+end.

@@ -1,0 +1,18 @@
+unit uSession;
+
+interface
+
+type
+  TSession = class
+  private
+    class var FID_USUARIO: integer;
+    class var FId_Filme: Integer;
+
+  public
+    class property ID_USUARIO: integer read FID_USUARIO write FID_USUARIO;
+    class property Id_Filme: Integer read FId_Filme write FId_Filme;
+  end;
+
+implementation
+
+end.

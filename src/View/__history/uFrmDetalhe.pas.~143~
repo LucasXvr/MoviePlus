@@ -1,0 +1,170 @@
+unit uFrmDetalhe;
+
+interface
+
+uses
+  System.SysUtils, System.Types, System.UITypes, System.Classes, System.Variants,
+  FMX.Types, FMX.Controls, FMX.Forms, FMX.Graphics, FMX.Dialogs, FMX.Objects,
+  FMX.Layouts, FMX.Controls.Presentation, FMX.StdCtrls, System.JSON, uFunctions,
+  uConsts, uLoading, uSession;
+
+type
+  TFrmDetalhe = class(TForm)
+    lytToolBar: TLayout;
+    imgVoltar: TImage;
+    Image2: TImage;
+    lblTitulo: TLabel;
+    Layout1: TLayout;
+    imgFoto: TImage;
+    Label1: TLabel;
+    lblSinopse: TLabel;
+    lblLancamento: TLabel;
+    rectAcessar: TRectangle;
+    btnAdicionar: TSpeedButton;
+    rectRemover: TRectangle;
+    btnRemover: TSpeedButton;
+    procedure FormShow(Sender: TObject);
+    procedure imgVoltarClick(Sender: TObject);
+    procedure btnAdicionarClick(Sender: TObject);
+    procedure btnRemoverClick(Sender: TObject);
+  private
+    url_completa: string;
+    procedure CarregarDetalhesFilme;
+    procedure ThreadListaTerminate(Sender: TObject);
+    { Private declarations }
+  public
+    UsarIdFilmeDaLista: Boolean;
+    { Public declarations }
+  end;
+
+var
+  FrmDetalhe: TFrmDetalhe;
+
+implementation
+
+{$R *.fmx}
+
+uses uFrmPrincipal, DataModuleDados, DataModuleUsuario, uFrmMinhaLista;
+
+procedure TFrmDetalhe.ThreadListaTerminate(Sender: TObject);
+begin
+  TLoading.Hide;
+
+  if Sender is TThread then
+  begin
+    if Assigned(TThread(Sender).FatalException) then
+    begin
+      ShowMessage(Exception(TThread(sender).FatalException).Message);
+      Exit;
+    end;
+  end;
+
+  if Sender = btnAdicionar then
+    ShowMessage('Filme Adicionado a sua Lista')
+  else if Sender = btnRemover then
+    ShowMessage('Filme Removido da sua Lista');
+end;
+
+procedure TFrmDetalhe.btnAdicionarClick(Sender: TObject);
+var
+  t: TThread;
+begin
+
+  TLoading.Show(FrmDetalhe, '');
+    // Verifique se o filme já existe na base de dados
+  if DmUsuario.FilmeJaExiste(TSession.Id_Filme) then
+  begin
+    // O filme já existe, você pode lidar com isso aqui, por exemplo, mostrando uma mensagem
+    ShowMessage('Este filme já está na sua lista.');
+    TLoading.Hide;
+  end
+  else
+  begin
+    t := TThread.CreateAnonymousThread(procedure
+    begin
+      DmUsuario.InserirFilme(TSession.Id_Filme, TSession.ID_USUARIO, lblTitulo.Text, lblSinopse.Text, url_completa);
+    end);
+
+    t.OnTerminate := procedure (Sender: TObject)
+    begin
+      ThreadListaTerminate(Sender, 'Adicionar');
+    end;
+
+    t.Start;
+  end;
+end;
+
+procedure TFrmDetalhe.btnRemoverClick(Sender: TObject);
+var
+  t: TThread;
+begin
+  TLoading.Show(FrmDetalhe, '');
+
+  if DmUsuario.FilmeNaoExiste(TSession.Id_Filme) then
+  begin
+    ShowMessage('Este Filme não esta na sua lista');
+    TLoading.Hide;
+  end
+  else
+  begin
+    t := TThread.CreateAnonymousThread(procedure
+    begin
+      DmUsuario.RemoverFilme(TSession.Id_Filme, TSession.ID_USUARIO);
+    end);
+
+    t.Start;
+  end;
+end;
+
+procedure TFrmDetalhe.CarregarDetalhesFilme;
+var
+  detalhesJSON: TJSONObject;
+  imageSize, url_foto: string;
+begin
+  // Verifica se FId_Filme está definido
+  imageSize := 'w500';
+
+  if TSession.Id_Filme > 0 then
+  begin
+    // Faz uma nova requisição para buscar os detalhes do filme com base no ID
+    detalhesJSON := DmDados.DetalhesFilme(TSession.Id_Filme);
+
+    // Verifica se a requisição foi bem-sucedida e analisa o JSON de resposta
+    if Assigned(detalhesJSON) then
+    begin
+      // Aqui pode acessar as informações específicas do filme no JSON
+      // e atualizar os componentes do formulário com essas informações
+      lblTitulo.Text := detalhesJSON.GetValue<string>('title');
+      url_foto := detalhesJSON.GetValue<string>('poster_path');
+      lblSinopse.Text := detalhesJSON.GetValue<string>('overview');
+      lblLancamento.Text := 'Data de lançamento: ' + detalhesJSON.GetValue<string>('release_date');
+
+      url_completa := URL_IMAGE + imageSize + url_foto;
+
+      imgFoto.TagString := url_completa;
+      LoadImageFromURL(imgFoto.Bitmap, url_completa);
+    end
+    else
+    begin
+      // Trata o caso em que a requisição falhou
+      ShowMessage('Falha ao buscar detalhes do filme.');
+    end;
+  end
+  else
+  begin
+    // Trata o caso em que FId_Filme não está definido
+    ShowMessage('ID do filme não especificado.');
+  end;
+end;
+
+procedure TFrmDetalhe.FormShow(Sender: TObject);
+begin
+  CarregarDetalhesFilme;
+end;
+
+procedure TFrmDetalhe.imgVoltarClick(Sender: TObject);
+begin
+  Close;
+end;
+
+end.

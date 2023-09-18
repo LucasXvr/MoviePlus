@@ -1,0 +1,12 @@
+object DmUsuario: TDmUsuario
+  Height = 292
+  Width = 410
+  object Conn: TFDConnection
+    Params.Strings = (
+      'DriverID=SQLite')
+    AfterConnect = ConnAfterConnect
+    BeforeConnect = ConnBeforeConnect
+    Left = 64
+    Top = 32
+  end
+end

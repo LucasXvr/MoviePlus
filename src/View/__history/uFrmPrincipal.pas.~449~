@@ -1,0 +1,515 @@
+unit uFrmPrincipal;
+
+interface
+
+uses
+  System.SysUtils, System.Types, System.UITypes, System.Classes, System.Variants,
+  FMX.Types, FMX.Controls, FMX.Forms, FMX.Graphics, FMX.Dialogs, FMX.Objects,
+  FMX.Layouts, FMX.StdCtrls, FMX.Controls.Presentation, FMX.Edit, FMX.Ani,
+  FMX.ListBox, FMX.TabControl, Frame.Principal, uFunctions, uLoading,
+  FMX.ListView.Types, FMX.ListView.Appearances, FMX.ListView.Adapters.Base,
+  FMX.ListView, uConsts, System.JSON, System.Generics.Collections;
+
+type
+  TFrmPrincipal = class(TForm)
+    lbCategoria: TListBox;
+    lbFilmes: TListBox;
+    ListBoxItem1: TListBoxItem;
+    Rectangle1: TRectangle;
+    Label1: TLabel;
+    ListBoxItem2: TListBoxItem;
+    Rectangle2: TRectangle;
+    Label2: TLabel;
+    lytPesquisa: TLayout;
+    rectPesquisa: TRectangle;
+    rectAcessar: TRectangle;
+    btnBuscarFilme: TSpeedButton;
+    Image3: TImage;
+    edtBusca: TEdit;
+    lytToolBar: TLayout;
+    imgMenu: TImage;
+    imgLogo: TImage;
+    rectMenu: TRectangle;
+    Image1: TImage;
+    lblMenuNome: TLabel;
+    lblMenuEmail: TLabel;
+    rectMinhaLista: TRectangle;
+    lblMinhaLista: TLabel;
+    rectLogout: TRectangle;
+    lblLogout: TLabel;
+    rectMeuPerfil: TRectangle;
+    lblMeuPerfil: TLabel;
+    imgVoltar: TImage;
+    procedure lbCategoriaItemClick(const Sender: TCustomListBox;
+      const Item: TListBoxItem);
+    procedure imgMenuClick(Sender: TObject);
+    procedure imgVoltarClick(Sender: TObject);
+    procedure rectMinhaListaClick(Sender: TObject);
+    procedure btnBuscarFilmeClick(Sender: TObject);
+    procedure rectLogoutClick(Sender: TObject);
+    procedure lbFilmesItemClick(const Sender: TCustomListBox;
+      const Item: TListBoxItem);
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
+    procedure rectMeuPerfilClick(Sender: TObject);
+    procedure FormShow(Sender: TObject);
+  private
+    FId_Filme: integer;
+    procedure DownloadFoto(lb: TListBox);
+    procedure AddFilme(id_Filme: integer;
+                                 nome, url_foto: string);
+    procedure ListarFilmes;
+    procedure ThreadFilmesTerminate(Sender: TObject);
+    procedure SelecionarCategoria(item: TListBoxItem);
+    procedure AddCategoria(id_categoria: integer; descricao: string);
+    procedure ListarCategorias;
+    procedure CarregarDados;
+    procedure ThreadDadosTerminate(Sender: TObject);
+    procedure PesquisarPorGenero(generoID: integer);
+    procedure OpenMenu(ind: boolean);
+    { Private declarations }
+  public
+    { Public declarations }
+    function ObterIdFilmeSelecionado: Integer;
+    property Id_Filme: integer read FId_Filme write FId_Filme;
+  end;
+
+var
+  FrmPrincipal: TFrmPrincipal;
+
+implementation
+
+{$R *.fmx}
+
+uses uFrmMinhaLista, uFrmDetalhe,
+  DataModuleDados, uFrmLogin, DataModuleUsuario, uSession, uFrmMeuPerfil;
+
+procedure TFrmPrincipal.DownloadFoto(lb: TListBox);
+var
+  t: TThread;
+  foto: TBitmap;
+  frame: TFramePrincipal;
+begin
+    // Carregar imagens...
+  t := TThread.CreateAnonymousThread(procedure
+  var
+      i : integer;
+  begin
+    for i := 0 to lb.Items.Count - 1 do
+    begin
+      frame := TFramePrincipal(lb.ItemByIndex(i).Components[0]);
+
+      if frame.imgFoto.TagString <> '' then
+      begin
+          foto := TBitmap.Create;
+          LoadImageFromURL(foto, frame.imgFoto.TagString);
+
+          frame.imgFoto.TagString := '';
+
+          frame.imgFoto.Bitmap.Assign(foto);
+      end;
+    end;
+
+  end);
+
+  t.Start;
+end;
+
+procedure TFrmPrincipal.FormClose(Sender: TObject; var Action: TCloseAction);
+begin
+  Action := TCloseAction.caFree;
+  FrmPrincipal := nil;
+end;
+
+procedure TFrmPrincipal.FormShow(Sender: TObject);
+begin
+  try
+    CarregarDados;
+  except
+    on E: Exception do
+  end;
+end;
+
+procedure TFrmPrincipal.OpenMenu(ind: boolean);
+begin
+  rectMenu.Visible := ind;
+end;
+
+procedure TFrmPrincipal.rectMeuPerfilClick(Sender: TObject);
+begin
+  if not Assigned(FrmMeuPerfil) then
+    Application.CreateForm(TFrmMeuPerfil, FrmMeuPerfil);
+
+  OpenMenu(False);
+  FrmMeuPerfil.Show;
+end;
+
+procedure TFrmPrincipal.rectMinhaListaClick(Sender: TObject);
+begin
+  if not Assigned(FrmMinhaLista) then
+    Application.CreateForm(TFrmMinhaLista, FrmMinhaLista);
+
+  OpenMenu(False);
+  FrmMinhaLista.Show;
+end;
+
+procedure TFrmPrincipal.rectLogoutClick(Sender: TObject);
+begin
+  try
+    DmUsuario.Desconectar;
+
+    if not Assigned(FrmLogin) then
+      Application.CreateForm(TFrmLogin, FrmLogin);
+
+    Application.MainForm := FrmLogin;
+    FrmLogin.Show;
+    FrmPrincipal.Close;
+  except
+    on E: Exception do
+    begin
+      ShowMessage('Erro ao desconectar: ' + E.Message);
+    end;
+  end;
+end;
+
+procedure TFrmPrincipal.imgMenuClick(Sender: TObject);
+begin
+  OpenMenu(true);
+end;
+
+procedure TFrmPrincipal.imgVoltarClick(Sender: TObject);
+begin
+  OpenMenu(false);
+end;
+
+procedure TFrmPrincipal.lbCategoriaItemClick(const Sender: TCustomListBox;
+  const Item: TListBoxItem);
+begin
+  SelecionarCategoria(Item);
+  PesquisarPorGenero(lbCategoria.Tag);
+end;
+
+procedure TFrmPrincipal.lbFilmesItemClick(const Sender: TCustomListBox;
+  const Item: TListBoxItem);
+begin
+  TSession.Id_Filme := item.Tag;
+
+  if not Assigned(FrmDetalhe) then
+    Application.CreateForm(TFrmDetalhe, FrmDetalhe);
+
+  FrmDetalhe.Show;
+end;
+
+function TFrmPrincipal.ObterIdFilmeSelecionado: Integer;
+begin
+  Result := FId_Filme;
+end;
+
+procedure TFrmPrincipal.SelecionarCategoria(item: TListBoxItem);
+var
+  x: integer;
+  item_loop: TListBoxItem;
+  rect: TRectangle;
+  lbl: TLabel;
+begin
+  //Zerar os itens
+  for x := 0 to lbCategoria.Items.Count - 1 do
+  begin
+    item_loop := lbCategoria.ItemByIndex(x);
+
+    rect := TRectangle(item_loop.Components[0]);
+    rect.Fill.Color := $FFE2E2E2;
+
+    lbl := TLabel(rect.Components[0]);
+    lbl.FontColor := $FF3A3A3A;
+  end;
+
+  //Ajusta somente item selecionado...
+  rect := TRectangle(item.Components[0]);
+  rect.Fill.Color := $FFA13939;
+
+  lbl := TLabel(rect.Components[0]);
+  lbl.FontColor := $FFFFFFFF;
+
+  //Salvar a categoria seleciona...
+  lbCategoria.Tag := item.Tag;
+end;
+
+procedure TFrmPrincipal.PesquisarPorGenero(generoID: integer);
+var
+  resultadoJSON: string;
+  jsonObj: TJSONObject;
+  jsonArray: TJSONArray;
+  i: Integer;
+begin
+
+  TLoading.Show(FrmPrincipal, 'Pesquisando Filmes...');
+  resultadoJSON := DmDados.PesquisarFilmesPorGenero(lbCategoria.Tag);
+
+  // Limpa a lista de filmes antes de adicionar novos
+  lbFilmes.Clear;
+
+  // Analisa o resultado JSON
+  jsonObj := TJSONObject.ParseJSONValue(resultadoJSON) as TJSONObject;
+
+  if Assigned(jsonObj) then
+  begin
+    // Verifica se a resposta contém a chave "results" que é onde estão os filmes
+    if jsonObj.TryGetValue<TJSONArray>('results', jsonArray) then
+    begin
+      for i := 0 to jsonArray.Count - 1 do
+      begin
+        // Acessa os dados do filme no array JSON
+        AddFilme(jsonArray.Items[i].GetValue<Integer>('id'),
+                 jsonArray.Items[i].GetValue<string>('title'),
+                 jsonArray.Items[i].GetValue<string>('poster_path'));
+      end;
+    end;
+    jsonObj.Free;
+  end;
+
+  TLoading.Hide;
+
+  DownloadFoto(lbFilmes);
+end;
+
+procedure TFrmPrincipal.AddCategoria(id_categoria: integer;
+                                   descricao: string);
+var
+    item: TListBoxItem;
+    rect: TRectangle;
+    lbl: TLabel;
+begin
+    item := TListBoxItem.Create(lbCategoria);
+    item.Selectable := false;
+    item.Text := '';
+    item.Width := 130;
+    item.Tag := id_categoria;
+
+    rect := TRectangle.Create(item);
+    rect.Cursor := crHandPoint;
+    rect.HitTest := false;
+    rect.Fill.Color := $FFE2E2E2;
+    rect.Align := TAlignLayout.Client;
+    rect.Margins.Top := 8;
+    rect.Margins.Left := 8;
+    rect.Margins.Right := 8;
+    rect.Margins.Bottom := 8;
+    rect.XRadius := 6;
+    rect.YRadius := 6;
+    rect.Stroke.Kind := TBrushKind.None;
+
+    lbl := TLabel.Create(rect);
+    lbl.Align := TAlignLayout.Client;
+    lbl.Text := descricao;
+    lbl.TextSettings.HorzAlign := TTextAlign.Center;
+    lbl.TextSettings.VertAlign := TTextAlign.Center;
+    lbl.StyledSettings := lbl.StyledSettings - [TStyledSetting.Size,
+                                                TStyledSetting.FontColor,
+                                                TStyledSetting.Style,
+                                                TStyledSetting.Other];
+    lbl.Font.Size := 13;
+    lbl.FontColor := $FF3A3A3A;
+
+    rect.AddObject(lbl);
+    item.AddObject(rect);
+    lbCategoria.AddObject(item);
+end;
+
+procedure TFrmPrincipal.AddFilme(id_Filme: integer;
+                                 nome, url_foto: string);
+var
+    item: TListBoxItem;
+    frame: TFramePrincipal;
+    imageSize, url_completa: string;
+begin
+    imageSize := 'w500';
+
+    item := TListBoxItem.Create(lbFilmes);
+
+    item.Selectable := false;
+    item.Text := '';
+    item.Height := 200;
+    item.Tag := id_Filme;
+
+
+    frame := TFramePrincipal.Create(item);
+    frame.lblNome.text := nome;
+
+    url_completa := URL_IMAGE + imageSize + url_foto;
+
+    frame.imgFoto.TagString := url_completa;
+
+    item.AddObject(frame);
+
+    lbFilmes.AddObject(item);
+end;
+
+procedure TFrmPrincipal.btnBuscarFilmeClick(Sender: TObject);
+var
+  pesquisa: string;
+  resultadoJSON: string;
+  jsonObj: TJSONObject;
+  jsonArray: TJSONArray;
+  i: Integer;
+begin
+  pesquisa := edtBusca.Text.Trim;
+
+
+  if pesquisa <> '' then
+  begin
+    TLoading.Show(FrmPrincipal, 'Pesquisando Filmes...');
+    resultadoJSON := DmDados.PesquisarFilmes(pesquisa);
+
+    // Limpa a lista de filmes antes de adicionar novos
+    lbFilmes.Clear;
+
+    // Analisa o resultado JSON
+    jsonObj := TJSONObject.ParseJSONValue(resultadoJSON) as TJSONObject;
+
+    if Assigned(jsonObj) then
+    begin
+      // Verifica se a resposta contém a chave "results" que é onde estão os filmes
+      if jsonObj.TryGetValue<TJSONArray>('results', jsonArray) then
+      begin
+        for i := 0 to jsonArray.Count - 1 do
+        begin
+          // Acessa os dados do filme no array JSON
+          AddFilme(jsonArray.Items[i].GetValue<Integer>('id'),
+                   jsonArray.Items[i].GetValue<string>('title'),
+                   jsonArray.Items[i].GetValue<string>('poster_path'));
+        end;
+      end;
+      jsonObj.Free;
+    end;
+    TLoading.Hide;
+  end;
+
+  DownloadFoto(lbFilmes);
+
+end;
+
+procedure TFrmPrincipal.ThreadFilmesTerminate(Sender: TObject);
+begin
+  TLoading.Hide;
+
+  if Sender is TThread then
+  begin
+    if Assigned(TThread(Sender).FatalException) then
+    begin
+      ShowMessage(Exception(TThread(sender).FatalException).Message);
+      Exit;
+    end;
+  end;
+
+  DownloadFoto(lbFilmes);
+end;
+
+procedure TFrmPrincipal.ThreadDadosTerminate(Sender: TObject);
+begin
+  TLoading.Hide;
+
+  if Sender is TThread then
+  begin
+    if Assigned(TThread(Sender).FatalException) then
+    begin
+      ShowMessage(Exception(TThread(sender).FatalException).Message);
+      Exit;
+    end;
+  end;
+end;
+
+procedure TFrmPrincipal.ListarCategorias;
+begin
+  DmDados.ObterCategorias;
+
+  with DmDados.DsCategorias do
+  begin
+    while not Eof do
+    begin
+      TThread.Synchronize(TThread.CurrentThread, procedure
+      begin
+        AddCategoria(FieldByName('id').AsInteger,
+                     FieldByName('name').AsString);
+      end);
+
+      Next;
+    end;
+  end;
+end;
+
+procedure TFrmPrincipal.ListarFilmes;
+var
+  t: TThread;
+  FilmeCount: integer;
+begin
+  lbCategoria.Items.Clear;
+  lbFilmes.Items.Clear;
+
+  t:= TThread.CreateAnonymousThread(procedure
+  begin
+    try
+      FilmeCount := 0;
+
+      // Abre o dataset antes de acessar os campos
+      DmDados.ListarFilmes;
+
+      // Verifica se os campos estão acessíveis e se o dataset está aberto
+      if not DmDados.TabFilmes.IsEmpty then
+      begin
+      with DmDados.TabFilmes do
+      begin
+        while (not Eof) do
+        begin
+          TThread.Synchronize(TThread.CurrentThread,
+          procedure
+          begin
+            // Acessa os campos após verificar se o dataset não está vazio
+            AddFilme(FieldByName('id').AsInteger,
+                     FieldByName('title').AsString,
+                     FieldByName('poster_path').AsString);
+          end);
+          Next;
+        end;
+      end;
+      end
+      else
+      begin
+        // Lida com o caso em que o dataset está vazio
+        TThread.Synchronize(TThread.CurrentThread,
+          procedure
+          begin
+            ShowMessage('Nenhum filme encontrado.');
+          end);
+      end;
+    finally
+      // Fecha o dataset quando terminar
+      DmDados.TabFilmes.Close;
+    end;
+  end);
+
+  t.OnTerminate := ThreadFilmesTerminate;
+  t.Start;
+end;
+
+procedure TFrmPrincipal.CarregarDados;
+var
+  t: TThread; // Declaração de uma variável para a thread
+begin
+  TLoading.Show(FrmPrincipal, ''); // Exibe uma tela de carregamento
+  lbCategoria.Items.Clear; // Limpa a lista de itens da caixa de listagem lbCategoria
+  lbFilmes.Items.Clear;  // Limpa a lista de itens da caixa de listagem lbFilmes
+
+  t := TThread.CreateAnonymousThread(procedure
+  begin
+    // O código dentro desta função será executado em uma thread separada
+    //Listar dados do Filme...
+    ListarFilmes;
+    //Listar as categorias...
+    ListarCategorias;
+  end);
+
+  t.OnTerminate := ThreadDadosTerminate;  // Define um manipulador de evento para quando a thread terminar
+  t.Start; // Inicia a execução da thread
+end;
+
+end.

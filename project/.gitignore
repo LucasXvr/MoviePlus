@@ -1,0 +1,6 @@
+# Arquivos gerados pelo Delphi
+*.exe
+*.dcu
+*.dof
+*.local
+.metadata
