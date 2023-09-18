@@ -35,3 +35,6 @@ Neste projeto, foram utilizadas as seguintes tecnologias e bibliotecas:
 ## Design e Protótipos
 
 - **Figma:** Você pode visualizar os designs e protótipos deste projeto no Figma [clicando aqui](https://www.figma.com/file/l9XOMwcRuzetCFEr13BMUR/MoviePlus?type=design&node-id=0%3A1&mode=design&t=4C9ywqtg8W7qfk3J-1).
+
+## Executavel
+[Download do Executável](https://drive.google.com/file/d/15KidRNq0yZXIX4zJW9wO8HbOMEM43pYr/view?usp=sharing)
