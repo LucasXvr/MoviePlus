@@ -18,3 +18,14 @@ MoviePlus é um aplicativo simples para listar filmes populares usando a API do 
 ![Tela de Cadastro](project/screenshots/Criacao_Conta.png)
 ![Menu Lateral](project/screenshots/MenudoLado.png)
 
+## Tecnologias Utilizadas
+
+Neste projeto, foram utilizadas as seguintes tecnologias e bibliotecas:
+
+- **Delphi 11:** Delphi é uma linguagem de programação e ambiente de desenvolvimento integrado (IDE) usado para construir aplicativos para Windows, macOS, iOS, Android e muito mais.
+
+- **DataSet.Serialize.Config:** Biblioteca que oferece recursos avançados de serialização de objetos para datasets em Delphi.
+
+- **RESTRequest4D:** Uma biblioteca para simplificar solicitações HTTP em Delphi, facilitando a comunicação com APIs RESTful.
+
+- API do The Movie Database (TMDb)
