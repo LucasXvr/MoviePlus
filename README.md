@@ -11,5 +11,5 @@ MoviePlus é um aplicativo simples para listar filmes populares usando a API do 
 
 ## Capturas de Tela
 
-![Tela Inicial](project/screenshots/MinhaLista.png)
-![Detalhes do Filme](screenshots/detalhes_filme.png)
+![Tela Inicial](project/screenshots/TelaInicial.png)
+![Detalhes do Filme](project/screenshots/Detalhes_Filme.png)
