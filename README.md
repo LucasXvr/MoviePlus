@@ -27,6 +27,8 @@ Neste projeto, foram utilizadas as seguintes tecnologias e bibliotecas:
 - **DataSet.Serialize.Config:** Biblioteca que oferece recursos avançados de serialização de objetos para datasets em Delphi.
 
 - **RESTRequest4D:** Uma biblioteca para simplificar solicitações HTTP em Delphi, facilitando a comunicação com APIs RESTful.
+  
+- **SQLite:** Um sistema de gerenciamento de banco de dados relacional que permite armazenar e recuperar dados em um arquivo local ou em memória, adequado para aplicativos móveis e de desktop.
 
 - API do The Movie Database (TMDb)
 
