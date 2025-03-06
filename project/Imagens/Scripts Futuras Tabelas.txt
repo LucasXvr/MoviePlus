@@ -1,0 +1,55 @@
+-- Tabela de Usuários
+CREATE TABLE IF NOT EXISTS usuarios (
+    id_usuario INT AUTO_INCREMENT PRIMARY KEY,
+    nome VARCHAR(100),
+    email VARCHAR(100),
+    senha VARCHAR(255),
+    endereco VARCHAR(100),
+    bairro VARCHAR(100),
+    cidade VARCHAR(100),
+    uf VARCHAR(100),
+    cep VARCHAR(100),
+    dt_cadastro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Tabela de Filmes
+CREATE TABLE IF NOT EXISTS filmes (
+    id_filme INT AUTO_INCREMENT PRIMARY KEY,
+    titulo VARCHAR(255),
+    descricao TEXT,
+    ano_lancamento INT,
+    diretor VARCHAR(100),
+    genero VARCHAR(100)
+);
+
+-- Tabela de Lista de Filmes por Usuário
+CREATE TABLE IF NOT EXISTS lista_filmes_usuario (
+    id_lista INT AUTO_INCREMENT PRIMARY KEY,
+    id_usuario INT,
+    id_filme INT,
+    data_adicao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    classificacao INT,
+    comentarios TEXT,
+    FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario),
+    FOREIGN KEY (id_filme) REFERENCES filmes(id_filme)
+);
+
+-- Tabela de Sessões de Login
+CREATE TABLE IF NOT EXISTS sessoes_login (
+    id_sessao INT AUTO_INCREMENT PRIMARY KEY,
+    id_usuario INT,
+    token VARCHAR(255),
+    data_inicio DATETIME,
+    data_expiracao DATETIME,
+    FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario)
+);
+
+-- Tabela de Recuperação de Senha
+CREATE TABLE IF NOT EXISTS recuperacao_senha (
+    id_solicitacao INT AUTO_INCREMENT PRIMARY KEY,
+    id_usuario INT,
+    token VARCHAR(255),
+    data_solicitacao DATETIME DEFAULT CURRENT_TIMESTAMP,
+    utilizado BOOLEAN DEFAULT 0,
+    FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario)
+);

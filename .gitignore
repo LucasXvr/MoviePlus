@@ -1,0 +1,50 @@
+# Delphi compiled files
+*.exe
+*.dll
+*.bpl
+*.dcu
+*.dcp
+*.dsk
+*.dsm
+*.ddp
+*.drc
+*.~* 
+
+# Delphi project files that can be regenerated
+*.identcache
+*.local
+*.tvsconfig
+*.stat
+
+# Backup and temp files
+__history/
+*.bak
+*.tmp
+*.old
+
+# IDE-specific files
+*.identcache
+*.local
+*.tvsconfig
+
+# Deployment files
+Deploy/*.deployproj
+
+# Package output
+*.bpl
+*.dcp
+*.dcu
+
+# Other files
+*.map
+*.obj
+*.res
+*.tds
+*.pch
+
+# Lazarus IDE files (if using)
+*.lps
+*.lpi
+
+# Logs
+*.log
